@@ -49,85 +49,57 @@
   </section>
 
 <script>
-/* ---------- Configuración ------------------------------------------------ */
-const ponder = { /* tabla de ponderaciones */ };
-const orden  = ['riesgo_de_credito','riesgo_de_mercado','riesgo_operativo','riesgo_legal','riesgo_reputacional','riesgo_tecnologico','riesgo_liquidez','causal_de_revocacion'];
-const nice   = {
-  riesgo_de_credito:'Riesgo de Crédito', riesgo_de_mercado:'Riesgo de Mercado', riesgo_operativo:'Riesgo Operativo', riesgo_legal:'Riesgo Legal', riesgo_reputacional:'Riesgo Reputacional', riesgo_tecnologico:'Riesgo Tecnológico', riesgo_liquidez:'Riesgo de Liquidez', causal_de_revocacion:'Causales de Revocación'
+/***************** Configuración *****************/
+const ponder = {
+  universales:{riesgo_de_credito:.25,riesgo_de_mercado:.20,riesgo_operativo:.15,riesgo_legal:.05,riesgo_reputacional:.05,riesgo_tecnologico:.10,riesgo_liquidez:.20},
+  digitales:{riesgo_de_credito:.20,riesgo_de_mercado:.05,riesgo_operativo:.15,riesgo_legal:.10,riesgo_reputacional:.15,riesgo_tecnologico:.20,riesgo_liquidez:.15},
+  retail:{riesgo_de_credito:.40,riesgo_de_mercado:.05,riesgo_operativo:.15,riesgo_legal:.05,riesgo_reputacional:.10,riesgo_tecnologico:.10,riesgo_liquidez:.15},
+  patrimoniales:{riesgo_de_credito:.20,riesgo_de_mercado:.10,riesgo_operativo:.15,riesgo_legal:.15,riesgo_reputacional:.20,riesgo_tecnologico:.10,riesgo_liquidez:.10},
+  nicho:{riesgo_de_credito:.35,riesgo_de_mercado:.05,riesgo_operativo:.10,riesgo_legal:.10,riesgo_reputacional:.10,riesgo_tecnologico:.10,riesgo_liquidez:.20},
+  desarrollo:{riesgo_de_credito:.40,riesgo_de_mercado:.10,riesgo_operativo:.10,riesgo_legal:.05,riesgo_reputacional:.10,riesgo_tecnologico:.05,riesgo_liquidez:.20}
 };
-const fileOf = r=>`${r}.json`;
-
-/* ---------- Estado ------------------------------------------------------- */
-let tipoBanco='', idx=0; const respuestas={}; let causCumple=0, causTotal=0;
-
-/* ---------- DOM refs ----------------------------------------------------- */
-const $form=document.getElementById('formulario'), $eval=document.getElementById('evaluacion'), $res=document.getElementById('resultado'),
-      $btnInit=document.getElementById('btnIniciar'), $btnNext=document.getElementById('btnSiguiente'), $title=document.getElementById('tituloRiesgo'), $list=document.getElementById('listaReq');
+const orden=['riesgo_de_credito','riesgo_de_mercado','riesgo_operativo','riesgo_legal','riesgo_reputacional','riesgo_tecnologico','riesgo_liquidez','causal_de_revocacion'];
+const nice={riesgo_de_credito:'Riesgo de Crédito',riesgo_de_mercado:'Riesgo de Mercado',riesgo_operativo:'Riesgo Operativo',riesgo_legal:'Riesgo Legal',riesgo_reputacional:'Riesgo Reputacional',riesgo_tecnologico:'Riesgo Tecnológico',riesgo_liquidez:'Riesgo de Liquidez',causal_de_revocacion:'Causales de Revocación'};
+const fileOf=r=>`${r}.json`;
+/***************** Estado *****************/
+let tipoBanco='',idx=0,respuestas={},causCumple=0,causTotal=0;
+/***************** DOM *****************/
+const $form=document.getElementById('formulario'),$eval=document.getElementById('evaluacion'),$res=document.getElementById('resultado'),$btnInit=document.getElementById('btnIniciar'),$btnNext=document.getElementById('btnSiguiente'),$title=document.getElementById('tituloRiesgo'),$list=document.getElementById('listaReq');
 $btnInit.onclick=iniciar; $btnNext.onclick=siguiente;
-
-/* ---------- Funciones principales --------------------------------------- */
+/***************** Funciones *****************/
 function iniciar(){
   if(!document.getElementById('nombreBanco').value.trim()){alert('Escribe el nombre del banco');return;}
-  tipoBanco=document.getElementById('tipoBanco').value; idx=0;
-  $form.classList.add('hidden'); $eval.classList.remove('hidden'); cargar();
+  tipoBanco=document.getElementById('tipoBanco').value;idx=0;respuestas={};causCumple=causTotal=0;
+  $form.classList.add('hidden');$eval.classList.remove('hidden');cargar();
 }
-
 async function cargar(){
-  const r=orden[idx]; $title.textContent=nice[r]||r;
-  $list.innerHTML='Cargando…'; $btnNext.classList.add('hidden');
+  const r=orden[idx];$title.textContent=nice[r];$list.innerHTML='Cargando…';$btnNext.classList.add('hidden');
   try{
-    const txt=await fetch(fileOf(r)).then(res=>res.text());
+    const txt=await fetch(fileOf(r)).then(r=>r.text());
     const data=JSON.parse(txt.replace(/NaN/g,'null'));
     render(r,data);
-  }catch(e){alert(`No se pudo cargar ${fileOf(r)}`); console.error(e);}  
-}
-
+  }catch(e){alert(`No se pudo cargar ${fileOf(r)}`);console.error(e);} }
 function render(r,data){
-  respuestas[r]=new Array(data.length).fill(null); $list.innerHTML='';
+  respuestas[r]=new Array(data.length).fill(null);$list.innerHTML='';
   data.forEach((item,i)=>{
-    const card=document.createElement('div'); card.className='border p-4 rounded-lg bg-slate-50';
-
-    /* ----- Título de requisito ----- */
+    const card=document.createElement('div');card.className='border p-4 rounded-lg bg-slate-50';
     const keyReq=Object.keys(item).find(k=>/requerimiento/i.test(k))||Object.keys(item)[0];
-    const h=document.createElement('p'); h.className='font-semibold'; h.textContent=item[keyReq]; card.appendChild(h);
-
-    /* ----- Detalle en tabla ----- */
-    const tbl=document.createElement('table'); tbl.className='hidden w-full text-sm mt-2 border';
-    Object.entries(item).forEach(([k,v])=>{
-      const tr=document.createElement('tr');
-      const th=document.createElement('th'); th.textContent=k; th.className='text-left bg-slate-100 px-2 py-1 border';
-      const td=document.createElement('td'); td.textContent=v; td.className='px-2 py-1 border';
-      tr.appendChild(th); tr.appendChild(td); tbl.appendChild(tr);
-    });
-    const link=document.createElement('a'); link.href='#'; link.textContent='Ver más info'; link.className='text-blue-700 underline text-sm';
-    link.onclick=e=>{e.preventDefault(); tbl.classList.toggle('hidden');};
-    card.appendChild(link); card.appendChild(tbl);
-
-    /* ----- Botones Cumple/No ----- */
-    const wrap=document.createElement('div'); wrap.className='mt-3 flex gap-2';
-    [['Cumple',1,'bg-green-600'],['No cumple',0,'bg-red-600']].forEach(([txt,val,cls])=>{
-      const b=document.createElement('button'); b.textContent=txt; b.className=`${cls} text-white px-3 py-1 rounded flex-1`;
-      b.onclick=()=>{respuestas[r][i]=val; wrap.querySelectorAll('button').forEach(x=>x.classList.remove('opacity-40')); b.classList.add('opacity-40'); if(!respuestas[r].includes(null)) $btnNext.classList.remove('hidden');};
-      wrap.appendChild(b);
-    });
-    card.appendChild(wrap);
-    $list.appendChild(card);
+    const h=document.createElement('p');h.className='font-semibold';h.textContent=item[keyReq];card.appendChild(h);
+    const tbl=document.createElement('table');tbl.className='hidden w-full text-sm mt-2 border';
+    Object.entries(item).forEach(([k,v])=>{const tr=document.createElement('tr');const th=document.createElement('th');th.textContent=k;th.className='text-left bg-slate-100 px-2 py-1 border';const td=document.createElement('td');td.textContent=v;td.className='px-2 py-1 border';tr.appendChild(th);tr.appendChild(td);tbl.appendChild(tr);});
+    const link=document.createElement('a');link.href='#';link.textContent='Ver más info';link.className='text-blue-700 underline text-sm';link.onclick=e=>{e.preventDefault();tbl.classList.toggle('hidden');};card.appendChild(link);card.appendChild(tbl);
+    const wrap=document.createElement('div');wrap.className='mt-3 flex gap-2';
+    [['Cumple',1,'bg-green-600'],['No cumple',0,'bg-red-600']].forEach(([txt,val,cls])=>{const b=document.createElement('button');b.textContent=txt;b.className=`${cls} text-white px-3 py-1 rounded flex-1`;b.onclick=()=>{respuestas[r][i]=val;wrap.querySelectorAll('button').forEach(x=>x.classList.remove('opacity-40'));b.classList.add('opacity-40');if(!respuestas[r].includes(null))$btnNext.classList.remove('hidden');};wrap.appendChild(b);});
+    card.appendChild(wrap);$list.appendChild(card);
   });
 }
-
 function siguiente(){
-  const r=orden[idx]; if(r==='causal_de_revocacion'){respuestas[r].forEach(v=>{causTotal++; if(v===1) causCumple++;});}
-  idx++; idx<orden.length?cargar():mostrarResultados();
+  const r=orden[idx];if(r==='causal_de_revocacion'){respuestas[r].forEach(v=>{causTotal++;if(v===1)causCumple++;});}
+  idx++;idx<orden.length?cargar():showResultados();
 }
+function showResultados(){
+  $eval.classList.add('hidden');$res.classList.remove('hidden');
+  const pesos=ponder[tipoBanco],labels=[],datos=[];
+  orden.slice
 
-function mostrarResultados(){
-  $eval.classList.add('hidden'); $res.classList.remove('hidden');
-  const pesos=ponder[tipoBanco], labels=[],datos=[];
-  orden.slice(0,7).forEach(r=>{const arr=respuestas[r]; if(!arr) return; const pct=arr.reduce((s,v)=>s+v,0)/arr.length; labels.push(nice[r]); datos.push((pct*pesos[r]*100).toFixed(2));});
-  new Chart(document.getElementById('graficoRiesgos').getContext('2d'),{type:'bar',data:{labels,datasets:[{label:'% Cumplimiento',data:datos}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:100}}}});
-  document.getElementById('resumenCausales').textContent=`Cumple ${causCumple} de ${causTotal} causales`;
-}
-</script>
-</body>
-</html>
 
