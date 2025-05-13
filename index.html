@@ -4,19 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Matriz de Cumplimiento CNBV</title>
-  <!-- Tailwind para estilos rápidos -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Chart.js para la gráfica final -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-slate-100 text-gray-900">
-  <!-- Encabezado -->
   <header class="bg-blue-800 text-white py-6 text-center shadow">
     <h1 class="text-3xl font-bold">Evaluador de Cumplimiento Normativo Bancario</h1>
     <p class="text-sm">Basado en la Matriz CNBV (Circular Única de Bancos)</p>
   </header>
 
-  <!-- ===== FORMULARIO INICIAL ===== -->
+  <!-- ========== FORMULARIO ========== -->
   <section id="formulario" class="max-w-lg mx-auto my-8 p-8 bg-white rounded-xl shadow">
     <label class="block font-semibold mb-1">Nombre del Banco</label>
     <input id="nombreBanco" type="text" class="w-full mb-4 p-2 border rounded" placeholder="Ej. Banco Alfa" />
@@ -36,7 +33,7 @@
     </button>
   </section>
 
-  <!-- ===== CONTENEDOR DE REQUERIMIENTOS ===== -->
+  <!-- ========== EVALUACIÓN ========== -->
   <section id="evaluacion" class="max-w-3xl mx-auto my-6 p-6 bg-white rounded-xl shadow hidden">
     <h2 id="tituloRiesgo" class="text-xl font-bold mb-4"></h2>
     <div id="listaReq" class="space-y-4"></div>
@@ -45,20 +42,18 @@
     </button>
   </section>
 
-  <!-- ===== RESULTADO FINAL ===== -->
+  <!-- ========== RESULTADOS ========== -->
   <section id="resultado" class="max-w-4xl mx-auto my-10 p-6 bg-white rounded-xl shadow hidden">
     <h2 class="text-2xl font-bold text-center mb-6">Resultados de Cumplimiento</h2>
     <canvas id="graficoRiesgos" class="w-full h-64"></canvas>
-
     <div class="mt-8">
       <h3 class="text-lg font-bold mb-2">Resumen de Causales de Revocación</h3>
       <p id="resumenCausales"></p>
     </div>
   </section>
 
-  <!-- ============ LÓGICA ============ -->
   <script>
-    // ----- PONDERACIONES (de tu tabla) -----
+    /* ---------------------- PONDERACIONES ---------------------- */
     const ponderaciones = {
       universales:   { riesgo_de_credito: 0.25, riesgo_de_mercado: 0.20, riesgo_operativo: 0.15, riesgo_legal: 0.05, riesgo_reputacional: 0.05, riesgo_tecnologico: 0.10, riesgo_liquidez: 0.20 },
       digitales:     { riesgo_de_credito: 0.20, riesgo_de_mercado: 0.05, riesgo_operativo: 0.15, riesgo_legal: 0.10, riesgo_reputacional: 0.15, riesgo_tecnologico: 0.20, riesgo_liquidez: 0.15 },
@@ -68,8 +63,8 @@
       desarrollo:    { riesgo_de_credito: 0.40, riesgo_de_mercado: 0.10, riesgo_operativo: 0.10, riesgo_legal: 0.05, riesgo_reputacional: 0.10, riesgo_tecnologico: 0.05, riesgo_liquidez: 0.20 }
     };
 
-    // Secuencia de evaluación
-    const riesgosOrden = [
+    /* ---------------------- ARCHIVOS ---------------------- */
+    const riesgos = [
       "riesgo_de_credito",
       "riesgo_de_mercado",
       "riesgo_operativo",
@@ -80,150 +75,114 @@
       "causal_de_revocacion"
     ];
 
-    const archivos = {
-      riesgo_de_credito: "riesgo_de_credito.json",
-      riesgo_de_mercado: "riesgo_de_mercado.json",
-      riesgo_operativo: "riesgo_operativo.json",
-      riesgo_legal: "riesgo_legal.json",
-      riesgo_reputacional: "riesgo_reputacional.json",
-      riesgo_tecnologico: "riesgo_tecnologico.json",
-      riesgo_liquidez: "riesgo_liquidez.json",
-      causal_de_revocacion: "causal_de_revocacion.json"
-    };
+    const rutaArchivo = r => `${r}.json`;
 
-    // ----- ESTADO -----
+    /* ---------------------- ESTADO ---------------------- */
     let tipoBanco = "";
     let idxRiesgo = 0;
-    const respuestas = {};  // { riesgo: [0|1] }
-    let causalesCumple = 0;
-    let causalesTotal  = 0;
+    const respuestas = {}; // {riesgo:[0|1]}
+    let causalesCumple = 0, causalesTotal = 0;
 
-    // ----- DOM -----
-    const formulario = document.getElementById("formulario");
-    const evaluacion = document.getElementById("evaluacion");
-    const resultado  = document.getElementById("resultado");
-    const btnIniciar = document.getElementById("btnIniciar");
-    const btnSig     = document.getElementById("btnSiguiente");
-    const tituloRis  = document.getElementById("tituloRiesgo");
-    const listaReq   = document.getElementById("listaReq");
+    /* ---------------------- DOM ---------------------- */
+    const $formulario = document.getElementById("formulario");
+    const $evaluacion = document.getElementById("evaluacion");
+    const $resultado  = document.getElementById("resultado");
+    const $btnInit    = document.getElementById("btnIniciar");
+    const $btnNext    = document.getElementById("btnSiguiente");
+    const $titulo     = document.getElementById("tituloRiesgo");
+    const $lista      = document.getElementById("listaReq");
 
-    btnIniciar.addEventListener("click", iniciar);
-    btnSig.addEventListener("click", siguiente);
+    $btnInit.onclick = iniciar;
+    $btnNext.onclick = avanzar;
 
-    async function iniciar() {
+    async function iniciar(){
       const nombre = document.getElementById("nombreBanco").value.trim();
-      if (!nombre) { alert("Escribe el nombre del banco"); return; }
+      if(!nombre){ alert("Escribe el nombre del banco"); return; }
       tipoBanco = document.getElementById("tipoBanco").value;
       idxRiesgo = 0;
-      await cargarRiesgo();
-      formulario.classList.add("hidden");
-      evaluacion.classList.remove("hidden");
+      await cargar();
+      $formulario.classList.add("hidden");
+      $evaluacion.classList.remove("hidden");
     }
 
-    async function cargarRiesgo() {
-      const riesgo = riesgosOrden[idxRiesgo];
-      tituloRis.textContent = formatea(riesgo);
-      listaReq.innerHTML = "Cargando…";
-      btnSig.classList.add("hidden");
-      try {
-        const data = await fetch(archivos[riesgo]).then(r => r.json());
-        render(data, riesgo);
-      } catch(e) {
+    async function cargar(){
+      const riesgo = riesgos[idxRiesgo];
+      $titulo.textContent = formatea(riesgo);
+      $lista.innerHTML = "Cargando…";
+      $btnNext.classList.add("hidden");
+
+      try{
+        const datos = await fetch(rutaArchivo(riesgo)).then(r=>r.json());
+        render(riesgo, datos);
+      }catch(e){
         console.error(e);
-        alert(`No se encontró el archivo ${archivos[riesgo]}`);
+        alert(`No se pudo cargar ${rutaArchivo(riesgo)}`);
       }
     }
 
-    function render(data, riesgo) {
+    function render(riesgo, data){
       respuestas[riesgo] = new Array(data.length).fill(null);
-      listaReq.innerHTML = "";
+      $lista.innerHTML = "";
 
-      data.forEach((item, i) => {
+      data.forEach((item,i)=>{
         const card = document.createElement("div");
-        card.className = "border p-4 rounded-lg bg-slate-50";
+        card.className="border p-4 rounded-lg bg-slate-50";
 
-        const titulo = document.createElement("p");
-        titulo.className = "font-semibold";
-        titulo.textContent = item["Requerimiento Normativo"] || `Req ${i+1}`;
-        card.appendChild(titulo);
+        const t = document.createElement("p");
+        t.className="font-semibold";
+        t.textContent = item["Requerimiento Normativo"] || `Req ${i+1}`;
+        card.appendChild(t);
 
-        // Ver más
-        const verMas = document.createElement("button");
-        verMas.textContent = "Ver más info";
-        verMas.className = "text-blue-700 underline text-sm";
-        const extra = document.createElement("pre");
-        extra.className = "hidden bg-slate-100 p-2 rounded text-xs overflow-auto mt-2";
-        extra.textContent = JSON.stringify(item, null, 2);
-        verMas.onclick = () => extra.classList.toggle("hidden");
-        card.appendChild(verMas);
-        card.appendChild(extra);
+        const btnM = document.createElement("button");
+        btnM.textContent = "Ver más info";
+        btnM.className="text-blue-700 underline text-sm";
+        const pre = document.createElement("pre");
+        pre.className="hidden bg-slate-100 p-2 rounded text-xs overflow-auto mt-2";
+        pre.textContent = JSON.stringify(item, null, 2);
+        btnM.onclick = ()=>pre.classList.toggle("hidden");
+        card.appendChild(btnM); card.appendChild(pre);
 
-        // Botones cumple / no cumple
         const cont = document.createElement("div");
-        cont.className = "mt-3 flex gap-2";
-        [["Cumple",1,"bg-green-600"],["No cumple",0,"bg-red-600"]].forEach(([txt,val,cls])=>{
+        cont.className="mt-3 flex gap-2";
+        [
+          {txt:"Cumple",val:1,cls:"bg-green-600"},
+          {txt:"No cumple",val:0,cls:"bg-red-600"}
+        ].forEach(cfg=>{
           const b=document.createElement("button");
-          b.textContent=txt;
-          b.className=`${cls} text-white px-3 py-1 rounded flex-1`;
+          b.textContent=cfg.txt;
+          b.className=`${cfg.cls} text-white px-3 py-1 rounded flex-1`;
           b.onclick=()=>{
-            respuestas[riesgo][i]=val;
-            cont.querySelectorAll("button").forEach(btn=>btn.classList.remove("opacity-40"));
+            respuestas[riesgo][i]=cfg.val;
+            cont.querySelectorAll("button").forEach(x=>x.classList.remove("opacity-40"));
             b.classList.add("opacity-40");
-            checkCompleto(riesgo);
+            if(!respuestas[riesgo].some(v=>v===null)) $btnNext.classList.remove("hidden");
           };
           cont.appendChild(b);
         });
         card.appendChild(cont);
-        listaReq.appendChild(card);
+        $lista.appendChild(card);
       });
     }
 
-    function checkCompleto(riesgo) {
-      if (!respuestas[riesgo].some(v=>v===null)) btnSig.classList.remove("hidden");
-    }
-
-    async function siguiente() {
-      // registrar stats para causales
-      const riesgo = riesgosOrden[idxRiesgo];
-      if (riesgo==="causal_de_revocacion") {
-        respuestas[riesgo].forEach(v=>{ if(v===1) causalesCumple++; causalesTotal++; });
+    async function avanzar(){
+      const riesgo = riesgos[idxRiesgo];
+      if(riesgo==="causal_de_revocacion"){
+        respuestas[riesgo].forEach(v=>{ causalesTotal++; if(v===1) causalesCumple++; });
       }
+
       idxRiesgo++;
-      if (idxRiesgo < riesgosOrden.length) {
-        await cargarRiesgo();
-      } else {
-        mostrarResultados();
+      if(idxRiesgo < riesgos.length){
+        await cargar();
+      }else{
+        mostrar();
       }
     }
 
-    function mostrarResultados() {
-      evaluacion.classList.add("hidden");
-      resultado.classList.remove("hidden");
+    function mostrar(){
+      $evaluacion.classList.add("hidden");
+      $resultado.classList.remove("hidden");
 
       const pesos = ponderaciones[tipoBanco];
-      const etiquetas=[];
-      const dataBar=[];
-      riesgosOrden.slice(0,7).forEach(r=>{
-        if(!respuestas[r]) return;
-        const arr = respuestas[r];
-        const pct = arr.reduce((a,b)=>a+b,0)/arr.length; // 0-1
-        const valor = pct*pesos[r]*100; // ponderado
-        etiquetas.push(formatea(r));
-        dataBar.push(Number(valor.toFixed(2)));
-      });
-
-      new Chart(document.getElementById("graficoRiesgos").getContext("2d"),{
-        type:"bar",
-        data:{labels:etiquetas,datasets:[{label:"% Cumplimiento ponderado",data:dataBar}]},
-        options:{scales:{y:{beginAtZero:true,max:100}}}
-      });
-
-      document.getElementById("resumenCausales").textContent=`Cumple ${causalesCumple} de ${causalesTotal} causales de revocación`;
-    }
-
-    function formatea(str){
-      return str.replace("riesgo_","":"").replace(/_/g," ").replace("causal de revocacion","Causales de Revocación").replace(/\b\w/g,l=>l.toUpperCase());
-    }
-  </script>
-</body>
-</html>
+      const labels=[], vals=[];
+      riesgos.slice(0,7).forEach(r=>{
+        const arr = respostas
