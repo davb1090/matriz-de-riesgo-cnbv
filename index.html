@@ -1,111 +1,111 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Matriz de Riesgo CNBV , <!-- Cambio mínimo para forzar despliegue -->.
- </title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      background-color: #f5f5f5;
-      color: #333;
-    }
-    header {
-      background-color: #153e90;
-      color: white;
-      padding: 1rem;
-      text-align: center;
-    }
-    section {
-      max-width: 800px;
-      margin: 2rem auto;
-      padding: 1.5rem;
-      background-color: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    h1, h2 {
-      color: #153e90;
-    }
-    select, button {
-      font-size: 1rem;
-      padding: 0.5rem;
-      margin-top: 1rem;
-      width: 100%;
-    }
-    nav ul {
-      list-style: none;
-      padding: 0;
-      display: grid;
-      gap: 0.5rem;
-    }
-    nav li a {
-      display: block;
-      padding: 0.75rem;
-      background-color: #e0e0e0;
-      border-radius: 5px;
-      text-decoration: none;
-      color: #153e90;
-      font-weight: bold;
-      text-align: center;
-    }
-    footer {
-      text-align: center;
-      margin-top: 3rem;
-      padding: 1rem;
-      font-size: 0.9rem;
-      color: #777;
-    }
-  </style>
+  <title>Evaluador CNBV</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <header>
-    <h1>Matriz de Cumplimiento Normativo CNBV</h1>
-    <p>Evalúa los riesgos regulatorios de tu banco</p>
+<body class="bg-gray-100 text-gray-900">
+  <!-- Encabezado -->
+  <header class="bg-blue-800 text-white py-6 text-center">
+    <h1 class="text-3xl font-bold">Evaluador de Cumplimiento Normativo Bancario</h1>
+    <p class="text-sm">Basado en matriz CNBV - Evaluación por riesgo y causales</p>
   </header>
 
-  <section>
-    <h2>Selecciona el tipo de banco</h2>
-    <select id="tipoBanco">
-      <option value="universal">Banco Universal / Múltiple</option>
-      <option value="digital">Banco Digital / Fintech</option>
-      <option value="consumo">Banco de Consumo / Retail</option>
-      <option value="privado">Banca Patrimonial / Privada</option>
-      <option value="nicho">Banco de Nicho / Especializado</option>
+  <!-- Sección de identificación -->
+  <section class="max-w-xl mx-auto my-6 p-6 bg-white rounded-xl shadow-md">
+    <label class="block font-semibold mb-1">Nombre del Banco:</label>
+    <input type="text" id="nombreBanco" class="w-full mb-4 p-2 border rounded" placeholder="Ej. Banco Alfa">
+
+    <label class="block font-semibold mb-1">Selecciona el tipo de banco:</label>
+    <select id="tipoBanco" class="w-full p-2 border rounded">
+      <option value="universales">Banco Universal</option>
+      <option value="digitales">Banco Digital</option>
+      <option value="retail">Banco de Consumo</option>
+      <option value="patrimoniales">Banca Patrimonial</option>
+      <option value="nicho">Banco de Nicho</option>
       <option value="desarrollo">Banco de Desarrollo</option>
     </select>
-    <button onclick="redirigirAHoja()">Ver Evaluación</button>
+
+    <button onclick="iniciarEvaluacion()" class="mt-4 w-full bg-blue-700 text-white py-2 rounded hover:bg-blue-800">Iniciar Evaluación</button>
   </section>
 
-  <section>
-    <h2>Navega por la matriz</h2>
-    <nav>
-      <ul>
-        <li><a href="#">Riesgo de Crédito</a></li>
-        <li><a href="#">Riesgo de Mercado</a></li>
-        <li><a href="#">Riesgo Operativo</a></li>
-        <li><a href="#">Riesgo Legal</a></li>
-        <li><a href="#">Riesgo Reputacional</a></li>
-        <li><a href="#">Riesgo Tecnológico</a></li>
-        <li><a href="#">Riesgo de Liquidez</a></li>
-        <li><a href="#">Causales de Revocación</a></li>
-        <li><a href="#">Ponderación de Riesgos</a></li>
-      </ul>
-    </nav>
+  <!-- Contenedor de evaluación dinámica -->
+  <section id="evaluacion" class="max-w-2xl mx-auto p-4 hidden bg-white rounded-xl shadow-md">
+    <div id="pregunta" class="text-xl font-bold mb-4">Requerimiento Normativo</div>
+    <div class="flex space-x-4">
+      <button class="bg-green-600 text-white px-4 py-2 rounded" onclick="responder(true)">Cumple</button>
+      <button class="bg-red-600 text-white px-4 py-2 rounded" onclick="responder(false)">No cumple</button>
+      <button class="bg-gray-300 text-gray-700 px-4 py-2 rounded" onclick="verMas()">Ver más info</button>
+    </div>
+    <div id="infoExtra" class="mt-4 hidden bg-gray-100 p-4 rounded"></div>
   </section>
 
-  <footer>
-    Proyecto académico | Tecnológico de Monterrey - 2025
-  </footer>
+  <!-- Resultado final -->
+  <section id="resultadoFinal" class="max-w-3xl mx-auto my-10 p-6 bg-white rounded-xl shadow-md hidden">
+    <h2 class="text-2xl font-bold text-center mb-4">Resultados de Cumplimiento</h2>
+    <canvas id="graficoRiesgos" class="w-full h-64"></canvas>
+    <div id="causales" class="mt-6">
+      <h3 class="text-lg font-bold mb-2">Causales de Revocación</h3>
+      <ul id="listaCausales" class="list-disc list-inside"></ul>
+    </div>
+  </section>
+
+  <!-- Justificación -->
+  <section class="max-w-3xl mx-auto my-8 text-center">
+    <a href="#" class="text-blue-700 underline">Leer justificación de ponderación por tipo de banco</a>
+  </section>
 
   <script>
-    function redirigirAHoja() {
-      const tipo = document.getElementById("tipoBanco").value;
-      alert("Aún no se conecta la base de datos. Este botón será funcional más adelante para mostrar la matriz correspondiente a: " + tipo);
+    // VARIABLES
+    const requerimientos = [
+      { riesgo: 'Crédito', texto: '¿Cuenta con políticas documentadas para evaluación de crédito?', info: 'Artículo 73, CUB...' },
+      { riesgo: 'Crédito', texto: '¿Se realiza verificación de historial crediticio?', info: 'Artículo 74, CUB...' },
+      { riesgo: 'Mercado', texto: '¿Existe control de posición diaria?', info: 'Artículo 88, CUB...' },
+      // ... se agregan los demás
+    ];
+
+    let index = 0;
+    let respuestas = [];
+
+    function iniciarEvaluacion() {
+      document.getElementById('evaluacion').classList.remove('hidden');
+      mostrarPregunta();
+    }
+
+    function mostrarPregunta() {
+      document.getElementById('infoExtra').classList.add('hidden');
+      const req = requerimientos[index];
+      document.getElementById('pregunta').innerText = req.texto;
+    }
+
+    function responder(cumple) {
+      respuestas.push({ ...requerimientos[index], cumple });
+      index++;
+      if (index < requerimientos.length) {
+        mostrarPregunta();
+      } else {
+        document.getElementById('evaluacion').classList.add('hidden');
+        mostrarResultados();
+      }
+    }
+
+    function verMas() {
+      const info = requerimientos[index].info;
+      const div = document.getElementById('infoExtra');
+      div.classList.remove('hidden');
+      div.innerText = info;
+    }
+
+    function mostrarResultados() {
+      document.getElementById('resultadoFinal').classList.remove('hidden');
+      // AQUI iría el cálculo real de ponderación y gráfico
+      document.getElementById('listaCausales').innerHTML = '<li>Artículo 10 LIC - Incumplimiento grave</li><li>Artículo 12 LIC - No mantener reservas suficientes</li>';
     }
   </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </body>
 </html>
