@@ -13,10 +13,9 @@
     <p class="text-sm">Basado en la Matriz CNBV (Circular Única de Bancos)</p>
   </header>
 
-  <!-- ===== Formulario ===== -->
   <section id="formulario" class="max-w-lg mx-auto my-8 p-8 bg-white rounded-xl shadow">
     <label class="block font-semibold mb-1">Nombre del Banco</label>
-    <input id="nombreBanco" class="w-full mb-4 p-2 border rounded" placeholder="Ej. Banco Alfa">
+    <input id="nombreBanco" type="text" class="w-full mb-4 p-2 border rounded" placeholder="Ej. Banco Alfa" />
 
     <label class="block font-semibold mb-1">Tipo de banco</label>
     <select id="tipoBanco" class="w-full p-2 border rounded">
@@ -28,17 +27,17 @@
       <option value="desarrollo">Desarrollo</option>
     </select>
 
-    <button id="btnIniciar" class="mt-6 w-full bg-blue-700 text-white py-2 rounded hover:bg-blue-800">Iniciar evaluación</button>
+    <button id="btnIniciar" class="mt-6 w-full bg-blue-700 text-white py-2 rounded hover:bg-blue-800">
+      Iniciar evaluación
+    </button>
   </section>
 
-  <!-- ===== Evaluación ===== -->
   <section id="evaluacion" class="max-w-3xl mx-auto my-6 p-6 bg-white rounded-xl shadow hidden">
     <h2 id="tituloRiesgo" class="text-xl font-bold mb-4"></h2>
     <div id="listaReq" class="space-y-4"></div>
     <button id="btnSiguiente" class="mt-6 bg-green-700 text-white px-4 py-2 rounded hidden">Siguiente</button>
   </section>
 
-  <!-- ===== Resultado ===== -->
   <section id="resultado" class="max-w-4xl mx-auto my-10 p-6 bg-white rounded-xl shadow hidden">
     <h2 class="text-2xl font-bold text-center mb-6">Resultados de Cumplimiento</h2>
     <canvas id="graficoRiesgos" class="w-full h-64"></canvas>
@@ -49,153 +48,92 @@
   </section>
 
 <script>
-/**************** Configuración ****************/ 
-// Ponderaciones (tabla convertida a proporciones 0‑1)
-const ponder = {
-  universales:   { riesgo_de_credito:0.25, riesgo_de_mercado:0.20, riesgo_operativo:0.15, riesgo_legal:0.05, riesgo_reputacional:0.05, riesgo_tecnologico:0.10, riesgo_liquidez:0.20 },
-  digitales:     { riesgo_de_credito:0.20, riesgo_de_mercado:0.05, riesgo_operativo:0.15, riesgo_legal:0.10, riesgo_reputacional:0.15, riesgo_tecnologico:0.20, riesgo_liquidez:0.15 },
-  retail:        { riesgo_de_credito:0.40, riesgo_de_mercado:0.05, riesgo_operativo:0.15, riesgo_legal:0.05, riesgo_reputacional:0.10, riesgo_tecnologico:0.10, riesgo_liquidez:0.15 },
-  patrimoniales: { riesgo_de_credito:0.20, riesgo_de_mercado:0.10, riesgo_operativo:0.15, riesgo_legal:0.15, riesgo_reputacional:0.20, riesgo_tecnologico:0.10, riesgo_liquidez:0.10 },
-  nicho:         { riesgo_de_credito:0.35, riesgo_de_mercado:0.05, riesgo_operativo:0.10, riesgo_legal:0.10, riesgo_reputacional:0.10, riesgo_tecnologico:0.10, riesgo_liquidez:0.20 },
-  desarrollo:    { riesgo_de_credito:0.40, riesgo_de_mercado:0.10, riesgo_operativo:0.10, riesgo_legal:0.05, riesgo_reputacional:0.10, riesgo_tecnologico:0.05, riesgo_liquidez:0.20 }
-};
+// Configuración de ponderaciones y orden
+const ponder = { /* ... */ };
+const orden = ['riesgo_de_credito','riesgo_de_mercado','riesgo_operativo','riesgo_legal','riesgo_reputacional','riesgo_tecnologico','riesgo_liquidez','causal_de_revocacion'];
+const fileOf = r=>`${r}.json`;
 
-// Orden de evaluación (nombres deben coincidir con archivos JSON sans acentos!)
-const orden = [
-  'riesgo_de_credito',
-  'riesgo_de_mercado',
-  'riesgo_operativo',
-  'riesgo_legal',
-  'riesgo_reputacional',
-  'riesgo_tecnologico', // Asegúrate que tu archivo se llame riesgo_tecnologico.json SIN tilde
-  'riesgo_liquidez',
-  'causal_de_revocacion'
-];
+// Estado global
+tipoBanco='';idx=0;respuestas={};causCumple=0;causTotal=0;
 
-const fileOf = r => `${r}.json`;
+// DOM refs
+const $form=document.getElementById('formulario'),$eval=document.getElementById('evaluacion'),$res=document.getElementById('resultado'),
+      $btnInit=document.getElementById('btnIniciar'),$btnNext=document.getElementById('btnSiguiente'),
+      $title=document.getElementById('tituloRiesgo'),$list=document.getElementById('listaReq');
 
-/**************** Estado ****************/
-let tipoBanco = '';
-let idx = 0;
-const respuestas = {}; // { riesgo: [0|1] }
-let causalesCumple = 0, causalesTotal = 0;
+$btnInit.onclick=iniciar; $btnNext.onclick=siguiente;
 
-/**************** DOM refs ****************/
-const $form = document.getElementById('formulario');
-const $eval = document.getElementById('evaluacion');
-const $res  = document.getElementById('resultado');
-const $btnInit = document.getElementById('btnIniciar');
-const $btnNext = document.getElementById('btnSiguiente');
-const $title   = document.getElementById('tituloRiesgo');
-const $list    = document.getElementById('listaReq');
-
-$btnInit.addEventListener('click', iniciar);
-$btnNext.addEventListener('click', siguiente);
-
-/**************** Funciones ****************/
 function iniciar(){
-  const nombre = document.getElementById('nombreBanco').value.trim();
-  if(!nombre){ alert('Escribe el nombre del banco'); return; }
-  tipoBanco = document.getElementById('tipoBanco').value;
-  idx = 0;
-  $form.classList.add('hidden');
-  $eval.classList.remove('hidden');
-  cargarRiesgo();
+  const nom=document.getElementById('nombreBanco').value.trim();
+  if(!nom){alert('Escribe el nombre del banco');return;}
+  tipoBanco=document.getElementById('tipoBanco').value; idx=0; $form.classList.add('hidden'); $eval.classList.remove('hidden'); cargar();
 }
 
-async function cargarRiesgo(){
-  const riesgo = orden[idx];
-  $title.textContent = format(riesgo);
-  $list.innerHTML = 'Cargando…';
-  $btnNext.classList.add('hidden');
+async function cargar(){
+  const r=orden[idx]; $title.textContent = format(r);
+  $list.innerHTML='Cargando…'; $btnNext.classList.add('hidden');
   try{
-    const data = await fetch(fileOf(riesgo)).then(r=>{if(!r.ok) throw new Error('404'); return r.json();});
-    mostrarRequerimientos(riesgo, data);
-  }catch(e){
-    console.error(e);
-    alert(`No se pudo cargar ${fileOf(riesgo)} - verifica nombre y ruta`);
-  }
+    const txt=await fetch(fileOf(r)).then(r=>r.text());
+    const data=JSON.parse(txt.replace(/NaN/g,'null'));
+    render(r,data);
+  }catch(e){alert(`No se pudo cargar ${fileOf(r)}`);}
 }
 
-function mostrarRequerimientos(riesgo, data){
-  respuestas[riesgo] = new Array(data.length).fill(null);
-  $list.innerHTML = '';
+function render(r,data){
+  respuestas[r]=new Array(data.length).fill(null);
+  $list.innerHTML='';
   data.forEach((item,i)=>{
-    const card = document.createElement('div');
-    card.className = 'border p-4 rounded-lg bg-slate-50';
+    const card=document.createElement('div');card.className='border p-4 rounded-lg bg-slate-50';
 
-    const txt = document.createElement('p');
-    txt.className = 'font-semibold';
-    txt.textContent = item['Requerimiento Normativo'] || `Req ${i+1}`;
-    card.appendChild(txt);
+    // Título
+    const keyReq=Object.keys(item).find(k=>/requerimiento/i.test(k))||Object.keys(item)[0];
+    const t=document.createElement('p');t.className='font-semibold';t.textContent=item[keyReq];card.appendChild(t);
 
-    const btnInfo = document.createElement('button');
-    btnInfo.textContent = 'Ver más info';
-    btnInfo.className = 'text-blue-700 underline text-sm';
-    const pre = document.createElement('pre');
-    pre.className = 'hidden bg-slate-100 p-2 rounded text-xs overflow-auto mt-2';
-    pre.textContent = JSON.stringify(item, null, 2);
-    btnInfo.onclick = ()=>pre.classList.toggle('hidden');
-    card.appendChild(btnInfo);
-    card.appendChild(pre);
+    // Ver más
+    const infoDiv=document.createElement('div');
+    if(r==='causal_de_revocacion'){
+      // tabla para causales
+      const table=document.createElement('table');table.className='w-full table-auto text-sm border-collapse';
+      const thead=document.createElement('thead');const trh=document.createElement('tr');
+      Object.keys(item).forEach(h=>{const th=document.createElement('th');th.className='px-2 py-1 border bg-slate-100';th.textContent=h;trh.appendChild(th);});
+      thead.appendChild(trh);table.appendChild(thead);
+      const tbody=document.createElement('tbody');const trb=document.createElement('tr');
+      Object.values(item).forEach(v=>{const td=document.createElement('td');td.className='px-2 py-1 border';td.textContent=v;trb.appendChild(td);});
+      tbody.appendChild(trb);table.appendChild(tbody);
+      infoDiv.appendChild(table);
+    } else {
+      const pre=document.createElement('pre');pre.className='hidden bg-slate-100 p-2 rounded text-xs overflow-auto mt-2';pre.textContent=JSON.stringify(item,null,2);
+      infoDiv.appendChild(pre);
+    }
+    const btn=document.createElement('button');btn.textContent='Ver más info';btn.className='text-blue-700 underline text-sm';
+    btn.onclick=()=>{const el=infoDiv.firstChild; el.classList.toggle('hidden');};
+    card.appendChild(btn);card.appendChild(infoDiv);
 
-    const wrap = document.createElement('div');
-    wrap.className = 'mt-3 flex gap-2';
-    [['Cumple',1,'bg-green-600'],['No cumple',0,'bg-red-600']].forEach(([t,val,cls])=>{
-      const b=document.createElement('button');
-      b.textContent=t; b.className=`${cls} text-white px-3 py-1 rounded flex-1`;
-      b.onclick=()=>{
-        respuestas[riesgo][i]=val;
-        wrap.querySelectorAll('button').forEach(x=>x.classList.remove('opacity-40'));
-        b.classList.add('opacity-40');
-        if(!respuestas[riesgo].some(v=>v===null)) $btnNext.classList.remove('hidden');
-      };
+    // Botones
+    const wrap=document.createElement('div');wrap.className='mt-3 flex gap-2';
+    [['Cumple',1,'bg-green-600'],['No cumple',0,'bg-red-600']].forEach(([txt,val,cls])=>{
+      const b=document.createElement('button');b.textContent=txt; b.className=`${cls} text-white px-3 py-1 rounded flex-1`;
+      b.onclick=()=>{respuestas[r][i]=val;wrap.querySelectorAll('button').forEach(x=>x.classList.remove('opacity-40'));b.classList.add('opacity-40'); if(!respuestas[r].includes(null))$btnNext.classList.remove('hidden');};
       wrap.appendChild(b);
     });
-    card.appendChild(wrap);
-    $list.appendChild(card);
+    card.appendChild(wrap);$list.appendChild(card);
   });
 }
 
 function siguiente(){
-  const riesgoActual = orden[idx];
-  if(riesgoActual==='causal_de_revocacion'){
-    respuestas[riesgoActual].forEach(v=>{causalesTotal++; if(v===1) causalesCumple++;});
-  }
-  idx++;
-  if(idx<orden.length){
-    cargarRiesgo();
-  }else{
-    mostrarResultados();
-  }
+  const r=orden[idx]; if(r==='causal_de_revocacion'){respuestas[r].forEach(v=>{causTotal++; if(v===1)causCumple++;});}
+  idx++; idx<orden.length?cargar():showRes();
 }
 
-function mostrarResultados(){
-  $eval.classList.add('hidden');
-  $res.classList.remove('hidden');
-
-  const pesos = ponder[tipoBanco];
-  const labels=[], datos=[];
-  orden.slice(0,7).forEach(r=>{
-    const arr = respuestas[r]; if(!arr) return;
-    const pct = arr.reduce((a,b)=>a+b,0)/arr.length; // 0-1
-    labels.push(format(r));
-    datos.push(Number((pct*pesos[r]*100).toFixed(2)));
-  });
-
-  new Chart(document.getElementById('graficoRiesgos').getContext('2d'),{
-    type:'bar',
-    data:{labels,datasets:[{label:'% Cumplimiento ponderado',data:datos}]},
-    options:{scales:{y:{beginAtZero:true,max:100}}}
-  });
-
-  document.getElementById('resumenCausales').textContent = `Cumple ${causalesCumple} de ${causalesTotal} causales`;
+function showRes(){
+  $eval.classList.add('hidden');$res.classList.remove('hidden');
+  const pesos=ponder[tipoBanco], labels=[],datos=[];
+  orden.slice(0,7).forEach(r=>{const a=respuestas[r]; if(!a)return; const pct=a.reduce((s,v)=>s+v,0)/a.length; labels.push(format(r)); datos.push((pct*pesos[r]*100).toFixed(2));});
+  new Chart(document.getElementById('graficoRiesgos').getContext('2d'),{type:'bar',data:{labels,datasets:[{label:'% Cumplimiento',data:datos}]},options:{scales:{y:{beginAtZero:true,max:100}}}});
+  document.getElementById('resumenCausales').textContent=`Cumple ${causCumple} de ${causTotal} causales`;
 }
 
-function format(r){
-  if(r==='causal_de_revocacion') return 'Causales de Revocación';
-  return r.replace('riesgo_','').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
-}
+function format(r){return r==='causal_de_revocacion'?'Causales de Revocación':r.replace(/_/g,' ').replace('riesgo ','').replace(/\w/g,c=>c.toUpperCase());}
 </script>
 </body>
 </html>
