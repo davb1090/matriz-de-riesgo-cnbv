@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Matriz de Cumplimiento CNBV</title>
-  <!-- Tailwind (sólo para estilos rápidos) -->
+  <!-- Tailwind para estilos rápidos -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Chart.js para la gráfica final -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -31,18 +31,6 @@
       <option value="desarrollo">Desarrollo</option>
     </select>
 
-    <label class="block font-semibold mt-4 mb-1">Riesgo a evaluar</label>
-    <select id="riesgo" class="w-full p-2 border rounded">
-      <option value="riesgo_de_credito">Crédito</option>
-      <option value="riesgo_de_mercado">Mercado</option>
-      <option value="riesgo_operativo">Operativo</option>
-      <option value="riesgo_legal">Legal</option>
-      <option value="riesgo_reputacional">Reputacional</option>
-      <option value="riesgo_tecnologico">Tecnológico</option>
-      <option value="riesgo_liquidez">Liquidez</option>
-      <option value="causal_de_revocacion">Causales de Revocación</option>
-    </select>
-
     <button id="btnIniciar" class="mt-6 w-full bg-blue-700 text-white py-2 rounded hover:bg-blue-800">
       Iniciar evaluación
     </button>
@@ -52,27 +40,25 @@
   <section id="evaluacion" class="max-w-3xl mx-auto my-6 p-6 bg-white rounded-xl shadow hidden">
     <h2 id="tituloRiesgo" class="text-xl font-bold mb-4"></h2>
     <div id="listaReq" class="space-y-4"></div>
-    <button id="btnTerminarRiesgo" class="mt-6 bg-green-700 text-white px-4 py-2 rounded hidden">
-      Terminar riesgo
+    <button id="btnSiguiente" class="mt-6 bg-green-700 text-white px-4 py-2 rounded hidden">
+      Siguiente
     </button>
   </section>
 
   <!-- ===== RESULTADO FINAL ===== -->
   <section id="resultado" class="max-w-4xl mx-auto my-10 p-6 bg-white rounded-xl shadow hidden">
-    <h2 class="text-2xl font-bold text-center mb-4">Resultados de Cumplimiento</h2>
+    <h2 class="text-2xl font-bold text-center mb-6">Resultados de Cumplimiento</h2>
     <canvas id="graficoRiesgos" class="w-full h-64"></canvas>
 
     <div class="mt-8">
       <h3 class="text-lg font-bold mb-2">Resumen de Causales de Revocación</h3>
       <p id="resumenCausales"></p>
-      <ul id="listaCausales" class="list-disc list-inside mt-2"></ul>
     </div>
   </section>
 
-  <!-- ===== LÓGICA JS ===== -->
+  <!-- ============ LÓGICA ============ -->
   <script>
-    // ------------- CONFIGURACIÓN -------------
-    // Ponderaciones por tipo de banco basadas en tu tabla (convertidas a proporciones)
+    // ----- PONDERACIONES (de tu tabla) -----
     const ponderaciones = {
       universales:   { riesgo_de_credito: 0.25, riesgo_de_mercado: 0.20, riesgo_operativo: 0.15, riesgo_legal: 0.05, riesgo_reputacional: 0.05, riesgo_tecnologico: 0.10, riesgo_liquidez: 0.20 },
       digitales:     { riesgo_de_credito: 0.20, riesgo_de_mercado: 0.05, riesgo_operativo: 0.15, riesgo_legal: 0.10, riesgo_reputacional: 0.15, riesgo_tecnologico: 0.20, riesgo_liquidez: 0.15 },
@@ -82,58 +68,162 @@
       desarrollo:    { riesgo_de_credito: 0.40, riesgo_de_mercado: 0.10, riesgo_operativo: 0.10, riesgo_legal: 0.05, riesgo_reputacional: 0.10, riesgo_tecnologico: 0.05, riesgo_liquidez: 0.20 }
     };
 
-    // Variables de estado
-    let tipoBancoSeleccionado = "";
-    let riesgoActual = "";
-    const datosEvaluacion = {};          // { riesgo: [0|1|null, ...] }
-    let causalesCumplen = 0;
-    let causalesNoCumplen = 0;
+    // Secuencia de evaluación
+    const riesgosOrden = [
+      "riesgo_de_credito",
+      "riesgo_de_mercado",
+      "riesgo_operativo",
+      "riesgo_legal",
+      "riesgo_reputacional",
+      "riesgo_tecnologico",
+      "riesgo_liquidez",
+      "causal_de_revocacion"
+    ];
 
-    // Elementos del DOM
-    const btnIniciar      = document.getElementById("btnIniciar");
-    const btnTerminarRiesgo = document.getElementById("btnTerminarRiesgo");
-    const formulario      = document.getElementById("formulario");
-    const evaluacion      = document.getElementById("evaluacion");
-    const resultado       = document.getElementById("resultado");
-    const tituloRiesgo    = document.getElementById("tituloRiesgo");
-    const listaReq        = document.getElementById("listaReq");
+    const archivos = {
+      riesgo_de_credito: "riesgo_de_credito.json",
+      riesgo_de_mercado: "riesgo_de_mercado.json",
+      riesgo_operativo: "riesgo_operativo.json",
+      riesgo_legal: "riesgo_legal.json",
+      riesgo_reputacional: "riesgo_reputacional.json",
+      riesgo_tecnologico: "riesgo_tecnologico.json",
+      riesgo_liquidez: "riesgo_liquidez.json",
+      causal_de_revocacion: "causal_de_revocacion.json"
+    };
 
-    btnIniciar.addEventListener("click", iniciarEvaluacion);
-    btnTerminarRiesgo.addEventListener("click", terminarRiesgo);
+    // ----- ESTADO -----
+    let tipoBanco = "";
+    let idxRiesgo = 0;
+    const respuestas = {};  // { riesgo: [0|1] }
+    let causalesCumple = 0;
+    let causalesTotal  = 0;
 
-    async function iniciarEvaluacion() {
-      const nombreBanco = document.getElementById("nombreBanco").value.trim();
-      tipoBancoSeleccionado = document.getElementById("tipoBanco").value;
-      riesgoActual = document.getElementById("riesgo").value;
+    // ----- DOM -----
+    const formulario = document.getElementById("formulario");
+    const evaluacion = document.getElementById("evaluacion");
+    const resultado  = document.getElementById("resultado");
+    const btnIniciar = document.getElementById("btnIniciar");
+    const btnSig     = document.getElementById("btnSiguiente");
+    const tituloRis  = document.getElementById("tituloRiesgo");
+    const listaReq   = document.getElementById("listaReq");
 
-      if (!nombreBanco) { alert("Escribe el nombre del banco"); return; }
+    btnIniciar.addEventListener("click", iniciar);
+    btnSig.addEventListener("click", siguiente);
 
-      // Cargamos JSON correspondiente
+    async function iniciar() {
+      const nombre = document.getElementById("nombreBanco").value.trim();
+      if (!nombre) { alert("Escribe el nombre del banco"); return; }
+      tipoBanco = document.getElementById("tipoBanco").value;
+      idxRiesgo = 0;
+      await cargarRiesgo();
+      formulario.classList.add("hidden");
+      evaluacion.classList.remove("hidden");
+    }
+
+    async function cargarRiesgo() {
+      const riesgo = riesgosOrden[idxRiesgo];
+      tituloRis.textContent = formatea(riesgo);
+      listaReq.innerHTML = "Cargando…";
+      btnSig.classList.add("hidden");
       try {
-        const data = await fetch(`./${riesgoActual}.json`).then(r => r.json());
-        renderRequerimientos(data);
-        formulario.classList.add("hidden");
-        evaluacion.classList.remove("hidden");
-      } catch(err) {
-        console.error(err);
-        alert("No se pudo cargar el archivo JSON para ese riesgo");
+        const data = await fetch(archivos[riesgo]).then(r => r.json());
+        render(data, riesgo);
+      } catch(e) {
+        console.error(e);
+        alert(`No se encontró el archivo ${archivos[riesgo]}`);
       }
     }
 
-    function renderRequerimientos(data) {
-      datosEvaluacion[riesgoActual] = new Array(data.length).fill(null);
+    function render(data, riesgo) {
+      respuestas[riesgo] = new Array(data.length).fill(null);
       listaReq.innerHTML = "";
-      tituloRiesgo.textContent = `Riesgo: ${formatearRiesgo(riesgoActual)}`;
 
-      data.forEach((item, idx) => {
+      data.forEach((item, i) => {
         const card = document.createElement("div");
         card.className = "border p-4 rounded-lg bg-slate-50";
 
         const titulo = document.createElement("p");
         titulo.className = "font-semibold";
-        titulo.textContent = item["Requerimiento Normativo"] || "Requerimiento";
+        titulo.textContent = item["Requerimiento Normativo"] || `Req ${i+1}`;
         card.appendChild(titulo);
 
-        // Botón Ver más
-        const btnMas = document.createElement("button
+        // Ver más
+        const verMas = document.createElement("button");
+        verMas.textContent = "Ver más info";
+        verMas.className = "text-blue-700 underline text-sm";
+        const extra = document.createElement("pre");
+        extra.className = "hidden bg-slate-100 p-2 rounded text-xs overflow-auto mt-2";
+        extra.textContent = JSON.stringify(item, null, 2);
+        verMas.onclick = () => extra.classList.toggle("hidden");
+        card.appendChild(verMas);
+        card.appendChild(extra);
 
+        // Botones cumple / no cumple
+        const cont = document.createElement("div");
+        cont.className = "mt-3 flex gap-2";
+        [["Cumple",1,"bg-green-600"],["No cumple",0,"bg-red-600"]].forEach(([txt,val,cls])=>{
+          const b=document.createElement("button");
+          b.textContent=txt;
+          b.className=`${cls} text-white px-3 py-1 rounded flex-1`;
+          b.onclick=()=>{
+            respuestas[riesgo][i]=val;
+            cont.querySelectorAll("button").forEach(btn=>btn.classList.remove("opacity-40"));
+            b.classList.add("opacity-40");
+            checkCompleto(riesgo);
+          };
+          cont.appendChild(b);
+        });
+        card.appendChild(cont);
+        listaReq.appendChild(card);
+      });
+    }
+
+    function checkCompleto(riesgo) {
+      if (!respuestas[riesgo].some(v=>v===null)) btnSig.classList.remove("hidden");
+    }
+
+    async function siguiente() {
+      // registrar stats para causales
+      const riesgo = riesgosOrden[idxRiesgo];
+      if (riesgo==="causal_de_revocacion") {
+        respuestas[riesgo].forEach(v=>{ if(v===1) causalesCumple++; causalesTotal++; });
+      }
+      idxRiesgo++;
+      if (idxRiesgo < riesgosOrden.length) {
+        await cargarRiesgo();
+      } else {
+        mostrarResultados();
+      }
+    }
+
+    function mostrarResultados() {
+      evaluacion.classList.add("hidden");
+      resultado.classList.remove("hidden");
+
+      const pesos = ponderaciones[tipoBanco];
+      const etiquetas=[];
+      const dataBar=[];
+      riesgosOrden.slice(0,7).forEach(r=>{
+        if(!respuestas[r]) return;
+        const arr = respuestas[r];
+        const pct = arr.reduce((a,b)=>a+b,0)/arr.length; // 0-1
+        const valor = pct*pesos[r]*100; // ponderado
+        etiquetas.push(formatea(r));
+        dataBar.push(Number(valor.toFixed(2)));
+      });
+
+      new Chart(document.getElementById("graficoRiesgos").getContext("2d"),{
+        type:"bar",
+        data:{labels:etiquetas,datasets:[{label:"% Cumplimiento ponderado",data:dataBar}]},
+        options:{scales:{y:{beginAtZero:true,max:100}}}
+      });
+
+      document.getElementById("resumenCausales").textContent=`Cumple ${causalesCumple} de ${causalesTotal} causales de revocación`;
+    }
+
+    function formatea(str){
+      return str.replace("riesgo_","":"").replace(/_/g," ").replace("causal de revocacion","Causales de Revocación").replace(/\b\w/g,l=>l.toUpperCase());
+    }
+  </script>
+</body>
+</html>
