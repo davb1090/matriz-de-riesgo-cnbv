@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Matriz de Riesgo CNBV</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    header {
+      background-color: #153e90;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+    }
+    section {
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 1.5rem;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    h1, h2 {
+      color: #153e90;
+    }
+    select, button {
+      font-size: 1rem;
+      padding: 0.5rem;
+      margin-top: 1rem;
+      width: 100%;
+    }
+    nav ul {
+      list-style: none;
+      padding: 0;
+      display: grid;
+      gap: 0.5rem;
+    }
+    nav li a {
+      display: block;
+      padding: 0.75rem;
+      background-color: #e0e0e0;
+      border-radius: 5px;
+      text-decoration: none;
+      color: #153e90;
+      font-weight: bold;
+      text-align: center;
+    }
+    footer {
+      text-align: center;
+      margin-top: 3rem;
+      padding: 1rem;
+      font-size: 0.9rem;
+      color: #777;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Matriz de Cumplimiento Normativo CNBV</h1>
+    <p>Evalúa los riesgos regulatorios de tu banco</p>
+  </header>
+
+  <section>
+    <h2>Selecciona el tipo de banco</h2>
+    <select id="tipoBanco">
+      <option value="universal">Banco Universal / Múltiple</option>
+      <option value="digital">Banco Digital / Fintech</option>
+      <option value="consumo">Banco de Consumo / Retail</option>
+      <option value="privado">Banca Patrimonial / Privada</option>
+      <option value="nicho">Banco de Nicho / Especializado</option>
+      <option value="desarrollo">Banco de Desarrollo</option>
+    </select>
+    <button onclick="redirigirAHoja()">Ver Evaluación</button>
+  </section>
+
+  <section>
+    <h2>Navega por la matriz</h2>
+    <nav>
+      <ul>
+        <li><a href="#">Riesgo de Crédito</a></li>
+        <li><a href="#">Riesgo de Mercado</a></li>
+        <li><a href="#">Riesgo Operativo</a></li>
+        <li><a href="#">Riesgo Legal</a></li>
+        <li><a href="#">Riesgo Reputacional</a></li>
+        <li><a href="#">Riesgo Tecnológico</a></li>
+        <li><a href="#">Riesgo de Liquidez</a></li>
+        <li><a href="#">Causales de Revocación</a></li>
+        <li><a href="#">Ponderación de Riesgos</a></li>
+      </ul>
+    </nav>
+  </section>
+
+  <footer>
+    Proyecto académico | Tecnológico de Monterrey - 2025
+  </footer>
+
+  <script>
+    function redirigirAHoja() {
+      const tipo = document.getElementById("tipoBanco").value;
+      alert("Aún no se conecta la base de datos. Este botón será funcional más adelante para mostrar la matriz correspondiente a: " + tipo);
+    }
+  </script>
+</body>
+</html>
