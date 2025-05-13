@@ -1,53 +1,139 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Matriz de Cumplimiento CNBV</title>
+  <!-- Tailwind (sólo para estilos rápidos) -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js para la gráfica final -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    /* …tu CSS… */
-  </style>
 </head>
-
-<body class="bg-gray-100 text-gray-900">
-  <!-- Encabezado único -->
-  <header class="bg-blue-800 text-white py-6 text-center">
+<body class="bg-slate-100 text-gray-900">
+  <!-- Encabezado -->
+  <header class="bg-blue-800 text-white py-6 text-center shadow">
     <h1 class="text-3xl font-bold">Evaluador de Cumplimiento Normativo Bancario</h1>
-    <p class="text-sm">Basado en matriz CNBV</p>
+    <p class="text-sm">Basado en la Matriz CNBV (Circular Única de Bancos)</p>
   </header>
 
-  <!-- Formulario: tipo de banco -->
-  <section class="max-w-xl mx-auto my-6 p-6 bg-white rounded-xl shadow">
+  <!-- ===== FORMULARIO INICIAL ===== -->
+  <section id="formulario" class="max-w-lg mx-auto my-8 p-8 bg-white rounded-xl shadow">
     <label class="block font-semibold mb-1">Nombre del Banco</label>
-    <input id="nombreBanco" class="w-full mb-4 p-2 border rounded" placeholder="Ej. Banco Alfa" />
+    <input id="nombreBanco" type="text" class="w-full mb-4 p-2 border rounded" placeholder="Ej. Banco Alfa" />
 
     <label class="block font-semibold mb-1">Tipo de banco</label>
     <select id="tipoBanco" class="w-full p-2 border rounded">
       <option value="universales">Universal</option>
       <option value="digitales">Digital</option>
-      <!-- … -->
+      <option value="retail">Retail</option>
+      <option value="patrimoniales">Patrimonial</option>
+      <option value="nicho">De nicho</option>
+      <option value="desarrollo">Desarrollo</option>
     </select>
 
-    <label class="block font-semibold mt-4 mb-1">Riesgo</label>
+    <label class="block font-semibold mt-4 mb-1">Riesgo a evaluar</label>
     <select id="riesgo" class="w-full p-2 border rounded">
       <option value="riesgo_de_credito">Crédito</option>
-      <!-- … -->
+      <option value="riesgo_de_mercado">Mercado</option>
+      <option value="riesgo_operativo">Operativo</option>
+      <option value="riesgo_legal">Legal</option>
+      <option value="riesgo_reputacional">Reputacional</option>
+      <option value="riesgo_tecnologico">Tecnológico</option>
+      <option value="riesgo_liquidez">Liquidez</option>
+      <option value="causal_de_revocacion">Causales de Revocación</option>
     </select>
 
-    <button onclick="cargarRequerimientos()"
-            class="mt-4 w-full bg-blue-700 text-white py-2 rounded hover:bg-blue-800">
+    <button id="btnIniciar" class="mt-6 w-full bg-blue-700 text-white py-2 rounded hover:bg-blue-800">
       Iniciar evaluación
     </button>
   </section>
 
-  <!-- Contenedores para preguntas y resultados -->
-  <section id="contenedor" class="max-w-2xl mx-auto p-4"></section>
-  <canvas id="grafica" class="max-w-2xl mx-auto"></canvas>
+  <!-- ===== CONTENEDOR DE REQUERIMIENTOS ===== -->
+  <section id="evaluacion" class="max-w-3xl mx-auto my-6 p-6 bg-white rounded-xl shadow hidden">
+    <h2 id="tituloRiesgo" class="text-xl font-bold mb-4"></h2>
+    <div id="listaReq" class="space-y-4"></div>
+    <button id="btnTerminarRiesgo" class="mt-6 bg-green-700 text-white px-4 py-2 rounded hidden">
+      Terminar riesgo
+    </button>
+  </section>
 
-  <script src="app.js"></script> <!-- mueve aquí tu JS para mantener orden -->
-</body>
-</html>
+  <!-- ===== RESULTADO FINAL ===== -->
+  <section id="resultado" class="max-w-4xl mx-auto my-10 p-6 bg-white rounded-xl shadow hidden">
+    <h2 class="text-2xl font-bold text-center mb-4">Resultados de Cumplimiento</h2>
+    <canvas id="graficoRiesgos" class="w-full h-64"></canvas>
+
+    <div class="mt-8">
+      <h3 class="text-lg font-bold mb-2">Resumen de Causales de Revocación</h3>
+      <p id="resumenCausales"></p>
+      <ul id="listaCausales" class="list-disc list-inside mt-2"></ul>
+    </div>
+  </section>
+
+  <!-- ===== LÓGICA JS ===== -->
+  <script>
+    // ------------- CONFIGURACIÓN -------------
+    // Ponderaciones por tipo de banco basadas en tu tabla (convertidas a proporciones)
+    const ponderaciones = {
+      universales:   { riesgo_de_credito: 0.25, riesgo_de_mercado: 0.20, riesgo_operativo: 0.15, riesgo_legal: 0.05, riesgo_reputacional: 0.05, riesgo_tecnologico: 0.10, riesgo_liquidez: 0.20 },
+      digitales:     { riesgo_de_credito: 0.20, riesgo_de_mercado: 0.05, riesgo_operativo: 0.15, riesgo_legal: 0.10, riesgo_reputacional: 0.15, riesgo_tecnologico: 0.20, riesgo_liquidez: 0.15 },
+      retail:        { riesgo_de_credito: 0.40, riesgo_de_mercado: 0.05, riesgo_operativo: 0.15, riesgo_legal: 0.05, riesgo_reputacional: 0.10, riesgo_tecnologico: 0.10, riesgo_liquidez: 0.15 },
+      patrimoniales: { riesgo_de_credito: 0.20, riesgo_de_mercado: 0.10, riesgo_operativo: 0.15, riesgo_legal: 0.15, riesgo_reputacional: 0.20, riesgo_tecnologico: 0.10, riesgo_liquidez: 0.10 },
+      nicho:         { riesgo_de_credito: 0.35, riesgo_de_mercado: 0.05, riesgo_operativo: 0.10, riesgo_legal: 0.10, riesgo_reputacional: 0.10, riesgo_tecnologico: 0.10, riesgo_liquidez: 0.20 },
+      desarrollo:    { riesgo_de_credito: 0.40, riesgo_de_mercado: 0.10, riesgo_operativo: 0.10, riesgo_legal: 0.05, riesgo_reputacional: 0.10, riesgo_tecnologico: 0.05, riesgo_liquidez: 0.20 }
+    };
+
+    // Variables de estado
+    let tipoBancoSeleccionado = "";
+    let riesgoActual = "";
+    const datosEvaluacion = {};          // { riesgo: [0|1|null, ...] }
+    let causalesCumplen = 0;
+    let causalesNoCumplen = 0;
+
+    // Elementos del DOM
+    const btnIniciar      = document.getElementById("btnIniciar");
+    const btnTerminarRiesgo = document.getElementById("btnTerminarRiesgo");
+    const formulario      = document.getElementById("formulario");
+    const evaluacion      = document.getElementById("evaluacion");
+    const resultado       = document.getElementById("resultado");
+    const tituloRiesgo    = document.getElementById("tituloRiesgo");
+    const listaReq        = document.getElementById("listaReq");
+
+    btnIniciar.addEventListener("click", iniciarEvaluacion);
+    btnTerminarRiesgo.addEventListener("click", terminarRiesgo);
+
+    async function iniciarEvaluacion() {
+      const nombreBanco = document.getElementById("nombreBanco").value.trim();
+      tipoBancoSeleccionado = document.getElementById("tipoBanco").value;
+      riesgoActual = document.getElementById("riesgo").value;
+
+      if (!nombreBanco) { alert("Escribe el nombre del banco"); return; }
+
+      // Cargamos JSON correspondiente
+      try {
+        const data = await fetch(`./${riesgoActual}.json`).then(r => r.json());
+        renderRequerimientos(data);
+        formulario.classList.add("hidden");
+        evaluacion.classList.remove("hidden");
+      } catch(err) {
+        console.error(err);
+        alert("No se pudo cargar el archivo JSON para ese riesgo");
+      }
+    }
+
+    function renderRequerimientos(data) {
+      datosEvaluacion[riesgoActual] = new Array(data.length).fill(null);
+      listaReq.innerHTML = "";
+      tituloRiesgo.textContent = `Riesgo: ${formatearRiesgo(riesgoActual)}`;
+
+      data.forEach((item, idx) => {
+        const card = document.createElement("div");
+        card.className = "border p-4 rounded-lg bg-slate-50";
+
+        const titulo = document.createElement("p");
+        titulo.className = "font-semibold";
+        titulo.textContent = item["Requerimiento Normativo"] || "Requerimiento";
+        card.appendChild(titulo);
+
+        // Botón Ver más
+        const btnMas = document.createElement("button
 
