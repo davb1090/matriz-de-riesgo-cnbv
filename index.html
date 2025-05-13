@@ -1,124 +1,53 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Matriz de Cumplimiento CNBV</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 0; }
-    header { background: #1d3557; color: white; padding: 1rem; text-align: center; }
-    main { max-width: 900px; margin: 2rem auto; background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-    select, button { padding: 0.5rem; margin-top: 1rem; width: 100%; font-size: 1rem; }
-    .requerimiento { margin: 1rem 0; padding: 1rem; border: 1px solid #ccc; border-radius: 5px; background: #f9f9f9; }
-    .botones { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
-    .botones button { flex: 1; padding: 0.5rem; font-weight: bold; cursor: pointer; }
-    #grafica { margin-top: 2rem; }
+    /* …tu CSS… */
   </style>
 </head>
-<body>
-  <header>
-    <h1>Matriz de Cumplimiento Normativo Bancario</h1>
-    <p>Evalúa cada requerimiento por tipo de riesgo</p>
+
+<body class="bg-gray-100 text-gray-900">
+  <!-- Encabezado único -->
+  <header class="bg-blue-800 text-white py-6 text-center">
+    <h1 class="text-3xl font-bold">Evaluador de Cumplimiento Normativo Bancario</h1>
+    <p class="text-sm">Basado en matriz CNBV</p>
   </header>
 
-  <main>
-    <label for="riesgo">Selecciona un riesgo:</label>
-    <select id="riesgo">
-      <option value="riesgo_de_credito">Riesgo de Crédito</option>
-      <option value="riesgo_de_mercado">Riesgo de Mercado</option>
-      <option value="riesgo_operativo">Riesgo Operativo</option>
-      <option value="riesgo_tecnologico">Riesgo Tecnológico</option>
-      <option value="riesgo_legal">Riesgo Legal</option>
-      <option value="riesgo_reputacional">Riesgo Reputacional</option>
-      <option value="riesgo_liquidez">Riesgo de Liquidez</option>
-      <option value="causal_de_revocacion">Causales de Revocación</option>
+  <!-- Formulario: tipo de banco -->
+  <section class="max-w-xl mx-auto my-6 p-6 bg-white rounded-xl shadow">
+    <label class="block font-semibold mb-1">Nombre del Banco</label>
+    <input id="nombreBanco" class="w-full mb-4 p-2 border rounded" placeholder="Ej. Banco Alfa" />
+
+    <label class="block font-semibold mb-1">Tipo de banco</label>
+    <select id="tipoBanco" class="w-full p-2 border rounded">
+      <option value="universales">Universal</option>
+      <option value="digitales">Digital</option>
+      <!-- … -->
     </select>
 
-    <button onclick="cargarRequerimientos()">Cargar Requerimientos</button>
+    <label class="block font-semibold mt-4 mb-1">Riesgo</label>
+    <select id="riesgo" class="w-full p-2 border rounded">
+      <option value="riesgo_de_credito">Crédito</option>
+      <!-- … -->
+    </select>
 
-    <div id="contenedor"></div>
-    <canvas id="grafica" width="800" height="400"></canvas>
-  </main>
+    <button onclick="cargarRequerimientos()"
+            class="mt-4 w-full bg-blue-700 text-white py-2 rounded hover:bg-blue-800">
+      Iniciar evaluación
+    </button>
+  </section>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script>
-    let datosEvaluacion = {};
+  <!-- Contenedores para preguntas y resultados -->
+  <section id="contenedor" class="max-w-2xl mx-auto p-4"></section>
+  <canvas id="grafica" class="max-w-2xl mx-auto"></canvas>
 
-    function cargarRequerimientos() {
-      const riesgo = document.getElementById('riesgo').value;
-      fetch(riesgo + '.json')
-        .then(resp => resp.json())
-        .then(data => mostrarRequerimientos(data, riesgo));
-    }
-
-    function mostrarRequerimientos(data, riesgo) {
-      const contenedor = document.getElementById('contenedor');
-      contenedor.innerHTML = '';
-      datosEvaluacion[riesgo] = [];
-
-      data.forEach((item, index) => {
-        const div = document.createElement('div');
-        div.className = 'requerimiento';
-
-        const titulo = document.createElement('p');
-        titulo.innerHTML = `<strong>Requerimiento:</strong> ${item["Requerimiento Normativo"]}`;
-        div.appendChild(titulo);
-
-        const botones = document.createElement('div');
-        botones.className = 'botones';
-
-        const cumple = document.createElement('button');
-        cumple.innerText = 'Cumple';
-        cumple.onclick = () => registrarEvaluacion(riesgo, index, 1);
-        botones.appendChild(cumple);
-
-        const noCumple = document.createElement('button');
-        noCumple.innerText = 'No cumple';
-        noCumple.onclick = () => registrarEvaluacion(riesgo, index, 0);
-        botones.appendChild(noCumple);
-
-        div.appendChild(botones);
-        contenedor.appendChild(div);
-      });
-    }
-
-    function registrarEvaluacion(riesgo, index, valor) {
-      datosEvaluacion[riesgo][index] = valor;
-      console.log(datosEvaluacion);
-      actualizarGrafica();
-    }
-
-    function actualizarGrafica() {
-      const ctx = document.getElementById('grafica').getContext('2d');
-      const riesgos = Object.keys(datosEvaluacion);
-      const resultados = riesgos.map(r => {
-        const respuestas = datosEvaluacion[r];
-        const suma = respuestas.reduce((a, b) => a + b, 0);
-        return (suma / respuestas.length) * 100;
-      });
-
-      if (window.grafico) window.grafico.destroy();
-      window.grafico = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: riesgos,
-          datasets: [{
-            label: '% de Cumplimiento',
-            data: resultados,
-            backgroundColor: 'rgba(21, 62, 144, 0.7)'
-          }]
-        },
-        options: {
-          scales: {
-            y: {
-              beginAtZero: true,
-              max: 100
-            }
-          }
-        }
-      });
-    }
-  </script>
+  <script src="app.js"></script> <!-- mueve aquí tu JS para mantener orden -->
 </body>
 </html>
 
